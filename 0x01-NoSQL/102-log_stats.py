@@ -1,29 +1,26 @@
 #!/usr/bin/env python3
-"""
-Improve 12-log_stats.py by adding the top 10 of the most present IPs
-in the collection nginx of the database logs:
-  The IPs top must be sorted (like in the README example)
-"""
+""" Log stats - new version """
 from pymongo import MongoClient
 
 
-def log_stats(mongo_collection):
-    """
-    Provides some stats about Nginx logs stored in MongoDB
-    """
-    result = mongo_collection.count_documents({})
-    print(f"{result} logs")
-    methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-    for method in methods:
-        documents = mongo_collection.count_documents({"method": method})
+def nginx_stats_check():
+    """ provides some stats about Nginx logs stored in MongoDB:"""
+    client = MongoClient()
+    collection = client.logs.nginx
+
+    num_of_docs = collection.count_documents({})
+    print("{} logs".format(num_of_docs))
     print("Methods:")
-    print(f"\tmethod {method}: {documents}")
-    status = mongo_collection.count_documents({"method": "GET",
-                                              "path": "/status"})
-    print(f"{status} status check")
+    methods_list = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    for method in methods_list:
+        method_count = collection.count_documents({"method": method})
+        print("\tmethod {}: {}".format(method, method_count))
+    status = collection.count_documents({"method": "GET", "path": "/status"})
+    print("{} status check".format(status))
 
     print("IPs:")
-    first_IPs = mongo_collection.aggregate([
+
+    top_IPs = collection.aggregate([
         {"$group":
          {
              "_id": "$ip",
@@ -38,13 +35,11 @@ def log_stats(mongo_collection):
             "count": 1
         }}
     ])
-    for ips in first_IPs:
-        count = ips.get("count")
-        ip_address = ips.get("ip")
-        print(f"\t{ip_address}: {count}")
+    for top_ip in top_IPs:
+        count = top_ip.get("count")
+        ip_address = top_ip.get("ip")
+        print("\t{}: {}".format(ip_address, count))
 
 
 if __name__ == "__main__":
-    with MongoClient() as client:
-        collection = client.logs.nginx
-        log_stats(collection)
+    nginx_stats_check()
